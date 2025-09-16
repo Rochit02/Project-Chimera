@@ -1,0 +1,692 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Project Chimera</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        /* --- Inserted CSS from user-provided design here --- */
+        /* ...existing code... */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 127, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 127, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        /* Navigation */
+        nav {
+            background: rgba(15, 15, 15, 0.9);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 255, 127, 0.3);
+            padding: 1rem 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00ff7f;
+            text-shadow: 0 0 10px rgba(0, 255, 127, 0.5);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: #e0e0e0;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-links a[href="/dashboard"] {
+            color: #00ff7f;
+            background: rgba(0, 255, 127, 0.1);
+            border: 1px solid rgba(0, 255, 127, 0.3);
+        }
+
+        .nav-links a::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 127, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .nav-links a:hover::before {
+            left: 100%;
+        }
+
+        .nav-links a:hover {
+            color: #00ff7f;
+            background: rgba(0, 255, 127, 0.1);
+            border: 1px solid rgba(0, 255, 127, 0.3);
+            transform: translateY(-2px);
+        }
+
+        /* Main content */
+        main {
+            margin-top: 80px;
+            padding: 2rem;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #00ff7f, #4ecdc4);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: #b0b0b0;
+            font-size: 1.1rem;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: rgba(20, 20, 20, 0.8);
+            border-radius: 15px;
+            padding: 2rem;
+            border: 1px solid rgba(0, 255, 127, 0.2);
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .control-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #00ff7f, transparent);
+            animation: scan 2s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .control-panel h2 {
+            color: #00ff7f;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .controls-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            color: #b0b0b0;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .form-group input {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: #e0e0e0;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #00ff7f;
+            box-shadow: 0 0 10px rgba(0, 255, 127, 0.3);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            font-size: 1rem;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #00ff7f, #00e676);
+            color: #000;
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #ff6b6b, #ff4757);
+            color: #fff;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        /* KPI Panel */
+        .kpi-section {
+            margin-bottom: 2rem;
+        }
+
+        .kpi-section h2 {
+            color: #00ff7f;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .kpi-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .kpi {
+            background: rgba(20, 20, 20, 0.8);
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .kpi::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--kpi-color, #00ff7f);
+        }
+
+        .kpi:nth-child(1), .kpi:nth-child(2) { --kpi-color: #ff6b6b; }
+        .kpi:nth-child(3), .kpi:nth-child(4) { --kpi-color: #4ecdc4; }
+
+        .kpi-label {
+            color: #b0b0b0;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--kpi-color, #00ff7f);
+            text-shadow: 0 0 10px rgba(0, 255, 127, 0.3);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            margin-bottom: 2rem;
+        }
+
+        .charts-section h2 {
+            color: #00ff7f;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: rgba(20, 20, 20, 0.8);
+            border-radius: 15px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        .chart-card h3 {
+            color: #e0e0e0;
+            margin-bottom: 1rem;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .chart-card canvas {
+            max-height: 300px;
+        }
+
+        .examples-pre {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            color: #b0b0b0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* Status indicators */
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        .status-active {
+            background: #00ff7f;
+        }
+
+        .status-inactive {
+            background: #ff6b6b;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .nav-container {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+            }
+            
+            .nav-links {
+                gap: 1rem;
+                flex-wrap: wrap;
+            }
+            
+            main {
+                margin-top: 120px;
+                padding: 1rem;
+            }
+            
+            .controls-form {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .page-title {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <div class="logo">⚡ CHIMERA</div>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/sandbox">Sandbox</a>
+                <a href="/lynx_logs">LYNX Logs</a>
+                <a href="/aegis_logs">AEGIS Logs</a>
+                <a href="/settings">Settings</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <header class="page-header">
+            <h1 class="page-title">MISSION CONTROL</h1>
+            <p class="page-subtitle">Real-time monitoring and control of LYNX and AEGIS operations</p>
+        </header>
+
+        <section class="control-panel">
+            <h2>🎯 Operation Controls</h2>
+            <form id="controls" class="controls-form" method="post" action="/dashboard">
+                <div class="form-group">
+                    <label for="url">Target URL</label>
+                    <input type="text" name="url" id="url" value="http://localhost:5000" placeholder="Enter target URL">
+                </div>
+                <div class="form-group">
+                    <label for="delay">Delay (seconds)</label>
+                    <input type="number" name="delay" id="delay" value="2" min="0" placeholder="Delay between operations">
+                </div>
+                <div class="btn-group">
+                    <button name="action" value="start" class="btn btn-start" type="submit">
+                        ▶️ START MISSION
+                    </button>
+                    <button name="action" value="stop" class="btn btn-stop" type="submit">
+                        ⏹️ STOP MISSION
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section id="kpis" class="kpi-section">
+            <h2>📊 Key Performance Indicators</h2>
+            <div class="kpi-panel">
+                <div class="kpi">
+                    <div class="kpi-label">
+                        <span class="status-indicator status-active"></span>
+                        Total LYNX Operations
+                    </div>
+                    <div id="kpi-lynx-total" class="kpi-value">0</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">
+                        <span class="status-indicator status-active"></span>
+                        LYNX Success Rate
+                    </div>
+                    <div id="kpi-lynx-success" class="kpi-value">0</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">
+                        <span class="status-indicator status-active"></span>
+                        Total AEGIS Operations
+                    </div>
+                    <div id="kpi-aegis-total" class="kpi-value">0</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">
+                        <span class="status-indicator status-active"></span>
+                        AEGIS Blocks
+                    </div>
+                    <div id="kpi-aegis-blocked" class="kpi-value">0</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="charts" class="charts-section">
+            <h2>📈 Real-time Analytics</h2>
+            <div class="chart-row">
+                <div class="chart-card">
+                    <h3>🦊 LYNX Attack Distribution</h3>
+                    <canvas id="lynxTypeChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>🛡️ AEGIS Defense Distribution</h3>
+                    <canvas id="aegisTypeChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-row">
+                <div class="chart-card">
+                    <h3>⚔️ Battle Statistics</h3>
+                    <canvas id="successPie"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>🔍 Recent Activity Log</h3>
+                    <pre id="examples" class="examples-pre">Initializing data stream...</pre>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const socket = io();
+
+        // Chart instances
+        let lynxTypeChart = null;
+        let aegisTypeChart = null;
+        let successPie = null;
+
+        // Chart.js default colors for dark theme
+        Chart.defaults.color = '#e0e0e0';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+        Chart.defaults.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+
+        function ensureCharts(){
+            if(!lynxTypeChart){
+                const ctx = document.getElementById('lynxTypeChart').getContext('2d');
+                lynxTypeChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { 
+                        labels: [], 
+                        datasets: [{ 
+                            label: 'Attack Count', 
+                            data: [], 
+                            backgroundColor: 'rgba(255, 107, 107, 0.8)',
+                            borderColor: 'rgba(255, 107, 107, 1)',
+                            borderWidth: 1
+                        }] 
+                    },
+                    options: { 
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#e0e0e0'
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                ticks: { color: '#b0b0b0' },
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                            },
+                            x: {
+                                ticks: { color: '#b0b0b0' },
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                            }
+                        }
+                    }
+                });
+            }
+            if(!aegisTypeChart){
+                const ctx = document.getElementById('aegisTypeChart').getContext('2d');
+                aegisTypeChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { 
+                        labels: [], 
+                        datasets: [{ 
+                            label: 'Defense Count', 
+                            data: [], 
+                            backgroundColor: 'rgba(78, 205, 196, 0.8)',
+                            borderColor: 'rgba(78, 205, 196, 1)',
+                            borderWidth: 1
+                        }] 
+                    },
+                    options: { 
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#e0e0e0'
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                ticks: { color: '#b0b0b0' },
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                            },
+                            x: {
+                                ticks: { color: '#b0b0b0' },
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                            }
+                        }
+                    }
+                });
+            }
+            if(!successPie){
+                const ctx = document.getElementById('successPie').getContext('2d');
+                successPie = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { 
+                        labels: ['LYNX Successful', 'AEGIS Blocked'], 
+                        datasets: [{ 
+                            data: [0,0], 
+                            backgroundColor: ['#ff6b6b', '#4ecdc4'],
+                            borderColor: ['#ff4757', '#44a08d'],
+                            borderWidth: 2
+                        }] 
+                    },
+                    options: { 
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#e0e0e0'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        socket.on('connect', function() {
+            console.log('Connected to server');
+            socket.emit('request_logs');
+        });
+
+        socket.on('log_update', function(data) {
+            ensureCharts();
+            const stats = data.stats || {};
+
+            // Update KPIs
+            document.getElementById('kpi-lynx-total').innerText = stats.lynx ? stats.lynx.total : 0;
+            document.getElementById('kpi-lynx-success').innerText = stats.lynx ? stats.lynx.success : 0;
+            document.getElementById('kpi-aegis-total').innerText = stats.aegis ? stats.aegis.total : 0;
+            document.getElementById('kpi-aegis-blocked').innerText = stats.aegis ? stats.aegis.blocked : 0;
+
+            // Update Lynx chart
+            const lynxByType = stats.lynx ? stats.lynx.by_type : {};
+            lynxTypeChart.data.labels = Object.keys(lynxByType);
+            lynxTypeChart.data.datasets[0].data = Object.values(lynxByType);
+            lynxTypeChart.update();
+
+            // Update Aegis chart
+            const aegisByType = stats.aegis ? stats.aegis.by_type : {};
+            aegisTypeChart.data.labels = Object.keys(aegisByType);
+            aegisTypeChart.data.datasets[0].data = Object.values(aegisByType);
+            aegisTypeChart.update();
+
+            // Update success pie chart
+            const lynxSuccess = stats.lynx ? stats.lynx.success : 0;
+            const aegisBlocked = stats.aegis ? stats.aegis.blocked : 0;
+            successPie.data.datasets[0].data = [lynxSuccess, aegisBlocked];
+            successPie.update();
+
+            // Update examples
+            const lynxExamples = (data.lynx_log||[]).filter(e=>e && e.success).slice(-3).reverse();
+            const aegisExamples = (data.aegis_log||[]).filter(e=>e && e.success).slice(-3).reverse();
+            
+            const exampleText = `🦊 RECENT LYNX SUCCESSES:\n${JSON.stringify(lynxExamples, null, 2)}\n\n🛡️ RECENT AEGIS BLOCKS:\n${JSON.stringify(aegisExamples, null, 2)}`;
+            document.getElementById('examples').innerText = exampleText;
+        });
+
+        // Initialize charts on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            ensureCharts();
+        });
+    </script>
+</body>
+</html>

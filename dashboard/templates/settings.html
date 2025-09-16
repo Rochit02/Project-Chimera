@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Settings</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a> |
+        <a href="/dashboard">Dashboard</a> |
+        <a href="/sandbox">Sandbox</a> |
+        <a href="/lynx_logs">LYNX Logs</a> |
+        <a href="/aegis_logs">AEGIS Logs</a> |
+        <a href="/settings">Settings</a>
+    </nav>
+    <h1>Settings</h1>
+    <form method="post">
+        <label>
+            <input type="checkbox" name="enable_llm_training" {% if settings.enable_llm_training %}checked{% endif %}>
+            Enable LLM training
+        </label>
+        <br><br>
+        <button type="submit">Save</button>
+    </form>
+</body>
+</html>

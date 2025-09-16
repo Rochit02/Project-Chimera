@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Agentic AI Dashboard</title>
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a> |
+        <a href="/">Dashboard</a> |
+        <a href="/sandbox">Sandbox</a> |
+        <a href="/lynx_logs">LYNX Logs</a> |
+        <a href="/aegis_logs">AEGIS Logs</a> |
+        <a href="/settings">Settings</a>
+    </nav>
+    <h1>Agentic AI Dashboard</h1>
+    <form method="post">
+    <label for="url">Target URL:</label>
+    <input type="text" id="url" name="url">
+        <label for="delay">Delay (s):</label>
+        <input type="number" id="delay" name="delay" value="2" min="0" max="60">
+        <button type="submit" name="start" value="1">Start</button>
+        <button type="submit" name="stop" value="1">Stop</button>
+    </form>
+    <form method="post" style="margin-top:20px;">
+        <button type="submit" name="lynx_report" value="1">Show Lynx Report</button>
+        <button type="submit" name="aegis_report" value="1">Show Aegis Report</button>
+    </form>
+    {% if url %}
+        <h2>Results for: {{ url }}</h2>
+        {% if results %}
+            <ol>
+            {% for r in results %}
+                <li>
+                    <strong>Attack:</strong> {{ r.attack.type }} / {{ r.attack.sub_type }}<br>
+                    <strong>Payload:</strong> <pre>{{ r.attack.description }}</pre>
+                    <strong>Success:</strong> {{ r.attack.success }}<br>
+                    <strong>Sandbox verdict:</strong> {{ r.defense }}
+                </li>
+            {% endfor %}
+            </ol>
+        {% endif %}
+    {% endif %}
+    <h2>Lynx Agent Log</h2>
+    <ul>
+        {% for entry in lynx_log %}
+            <li>{{ entry }}</li>
+        {% endfor %}
+    </ul>
+    {% if lynx_report %}
+        <h2>Lynx Agent Report</h2>
+        <pre>{{ lynx_report | tojson(indent=2) }}</pre>
+    {% endif %}
+    <h2>Aegis Agent Log</h2>
+    <ul>
+        {% for entry in aegis_log %}
+            <li>{{ entry }}</li>
+        {% endfor %}
+    </ul>
+    {% if aegis_report %}
+        <h2>Aegis Defense Report</h2>
+        <pre>{{ aegis_report | tojson(indent=2) }}</pre>
+    {% endif %}
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+    const socket = io();
+    socket.on('connect', function() {
+        socket.emit('request_logs');
+    });
+    socket.on('log_update', function(data) {
+        // Update Lynx log
+        const lynxLogList = document.querySelector('ul:nth-of-type(1)');
+        if (lynxLogList && data.lynx_log) {
+            lynxLogList.innerHTML = '';
+            data.lynx_log.forEach(function(entry) {
+                const li = document.createElement('li');
+                li.textContent = typeof entry === 'string' ? entry : JSON.stringify(entry);
+                lynxLogList.appendChild(li);
+            });
+        }
+        // Update Aegis log
+        const aegisLogList = document.querySelector('ul:nth-of-type(2)');
+        if (aegisLogList && data.aegis_log) {
+            aegisLogList.innerHTML = '';
+            data.aegis_log.forEach(function(entry) {
+                const li = document.createElement('li');
+                li.textContent = typeof entry === 'string' ? entry : JSON.stringify(entry);
+                aegisLogList.appendChild(li);
+            });
+        }
+    });
+</script>
+</body>
+</html>

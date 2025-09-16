@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Aegis Agent Logs</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a> |
+        <a href="/">Dashboard</a> |
+        <a href="/sandbox">Sandbox</a> |
+        <a href="/lynx_logs">LYNX Logs</a> |
+        <a href="/aegis_logs">AEGIS Logs</a> |
+        <a href="/settings">Settings</a>
+    </nav>
+    <head>
+        <link rel="stylesheet" href="/static/style.css">
+    </head>
+    <div class="container mt-4">
+        <h2>Aegis Agent Logs</h2>
+        <a href="/" class="btn btn-secondary mb-3">Back to Dashboard</a>
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Type</th>
+                    <th>Sub Type</th>
+                    <th>Payload</th>
+                    <th>Success</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in aegis_log %}
+                <tr>
+                    <td>{{ entry.time }}</td>
+                    <td>{{ entry.type }}</td>
+                    <td>{{ entry.sub_type }}</td>
+                    <td>{{ entry.payload }}</td>
+                    <td>{{ entry.success }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

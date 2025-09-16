@@ -1,0 +1,149 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Dashboard</title>
+        <link rel="stylesheet" href="/static/style.css">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    </head>
+    <body>
+        <h1>Dashboard</h1>
+        <nav>
+            <a href="/">Home</a> |
+            <a href="/dashboard">Dashboard</a> |
+            <a href="/sandbox">Sandbox</a> |
+            <a href="/lynx_logs">LYNX Logs</a> |
+            <a href="/aegis_logs">AEGIS Logs</a> |
+            <a href="/settings">Settings</a>
+        </nav>
+
+        <form id="controls" method="post" action="/dashboard">
+            <label>Target URL: <input type="text" name="url" value="http://localhost:5000"></label>
+            <label>Delay (s): <input type="number" name="delay" value="2" min="0"></label>
+            <button name="action" value="start">Start</button>
+            <button name="action" value="stop">Stop</button>
+        </form>
+
+        <section id="kpis">
+            <h2>Key Metrics</h2>
+            <div class="kpi-panel">
+                <div class="kpi">
+                    <div class="kpi-label">Total Lynx</div>
+                    <div id="kpi-lynx-total" class="kpi-value">0</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Lynx Success</div>
+                    <div id="kpi-lynx-success" class="kpi-value">0</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Total Aegis</div>
+                    <div id="kpi-aegis-total" class="kpi-value">0</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Aegis Blocked</div>
+                    <div id="kpi-aegis-blocked" class="kpi-value">0</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="charts">
+            <h2>Visualizations</h2>
+            <div class="chart-row">
+                <div class="chart-card">
+                    <h3>Lynx by Type</h3>
+                    <canvas id="lynxTypeChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Aegis by Type</h3>
+                    <canvas id="aegisTypeChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-row">
+                <div class="chart-card">
+                    <h3>Success vs Blocked</h3>
+                    <canvas id="successPie"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Recent Examples</h3>
+                    <pre id="examples" class="examples-pre">Waiting for data...</pre>
+                </div>
+            </div>
+        </section>
+
+        <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+        <script>
+            const socket = io();
+
+            // Chart instances
+            let lynxTypeChart = null;
+            let aegisTypeChart = null;
+            let successPie = null;
+
+            function ensureCharts(){
+                if(!lynxTypeChart){
+                    const ctx = document.getElementById('lynxTypeChart').getContext('2d');
+                    lynxTypeChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: { labels: [], datasets: [{ label: 'Count', data: [], backgroundColor: 'rgba(200,50,50,0.7)'}] },
+                        options: { responsive: true }
+                    });
+                }
+                if(!aegisTypeChart){
+                    const ctx = document.getElementById('aegisTypeChart').getContext('2d');
+                    aegisTypeChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: { labels: [], datasets: [{ label: 'Count', data: [], backgroundColor: 'rgba(50,50,200,0.7)'}] },
+                        options: { responsive: true }
+                    });
+                }
+                if(!successPie){
+                    const ctx = document.getElementById('successPie').getContext('2d');
+                    successPie = new Chart(ctx, {
+                        type: 'pie',
+                        data: { labels: ['Lynx Success','Aegis Blocked'], datasets: [{ data: [0,0], backgroundColor: ['#e74c3c','#3498db'] }] },
+                        options: { responsive: true }
+                    });
+                }
+            }
+
+            socket.on('connect', function() {
+                socket.emit('request_logs');
+            });
+
+            socket.on('log_update', function(data) {
+                ensureCharts();
+                const stats = data.stats || {};
+
+                // KPIs
+                document.getElementById('kpi-lynx-total').innerText = stats.lynx ? stats.lynx.total : 0;
+                document.getElementById('kpi-lynx-success').innerText = stats.lynx ? stats.lynx.success : 0;
+                document.getElementById('kpi-aegis-total').innerText = stats.aegis ? stats.aegis.total : 0;
+                document.getElementById('kpi-aegis-blocked').innerText = stats.aegis ? stats.aegis.blocked : 0;
+
+                // Lynx by type
+                const lynxByType = stats.lynx ? stats.lynx.by_type : {};
+                lynxTypeChart.data.labels = Object.keys(lynxByType);
+                lynxTypeChart.data.datasets[0].data = Object.values(lynxByType);
+                lynxTypeChart.update();
+
+                // Aegis by type
+                const aegisByType = stats.aegis ? stats.aegis.by_type : {};
+                aegisTypeChart.data.labels = Object.keys(aegisByType);
+                aegisTypeChart.data.datasets[0].data = Object.values(aegisByType);
+                aegisTypeChart.update();
+
+                // Success pie
+                const s1 = stats.lynx ? stats.lynx.success : 0;
+                const s2 = stats.aegis ? stats.aegis.blocked : 0;
+                successPie.data.datasets[0].data = [s1, s2];
+                successPie.update();
+
+                // Examples: show recent successful Lynx and recent blocked Aegis
+                const lynxExamples = (data.lynx_log||[]).filter(e=>e && e.success).slice(-3).reverse();
+                const aegisExamples = (data.aegis_log||[]).filter(e=>e && e.success).slice(-3).reverse();
+                const exText = 'Recent Lynx successes:\n' + JSON.stringify(lynxExamples, null, 2) + '\n\nRecent Aegis blocks:\n' + JSON.stringify(aegisExamples, null, 2);
+                document.getElementById('examples').innerText = exText;
+            });
+        </script>
+    </body>
+</html>

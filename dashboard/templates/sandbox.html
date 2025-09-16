@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sandbox Requests</title>
+    <link rel="stylesheet" href="/static/style.css">
+    </head>
+<body>
+    <nav>
+        <a href="/">Home</a> |
+        <a href="/dashboard">Dashboard</a> |
+        <a href="/sandbox">Sandbox</a> |
+        <a href="/lynx_logs">LYNX Logs</a> |
+        <a href="/aegis_logs">AEGIS Logs</a> |
+        <a href="/settings">Settings</a>
+    </nav>
+    <h1>Sandbox - Recent Requests</h1>
+    <ul>
+    {% for req in sandbox_requests %}
+        <li><pre>{{ req | tojson(indent=2) }}</pre></li>
+    {% endfor %}
+    </ul>
+</body>
+</html>
